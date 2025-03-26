@@ -1,0 +1,131 @@
+import os
+import sys
+import json
+import time
+import random
+import urllib.request
+import hashlib
+import subprocess
+from datetime import datetime
+
+# معلومات التطبيق
+APP_NAME = "قاموس ياسين البهوش للمعاني"
+VERSION = "1.0"
+OWNER = "Yassine Bohouch"  
+APP_ID = hashlib.md5(f"{APP_NAME}_{OWNER}".encode()).hexdigest()
+
+# مجاني - استخدام GitHub كمنصة استضافة للتحديثات
+UPDATE_URL = "https://raw.githubusercontent.com/YassinPower03/arabic-dictionary-updates/main/updates.json"
+
+def generate_license_key():
+    """توليد مفتاح ترخيص فريد لكل تثبيت"""
+    machine_id = hashlib.md5(os.environ.get('COMPUTERNAME', 'unknown').encode()).hexdigest()
+    license_key = hashlib.sha256(f"{APP_ID}_{machine_id}_{VERSION}".encode()).hexdigest()
+    return license_key
+
+def save_license():
+    """حفظ معلومات الترخيص"""
+    license_data = {
+        "app_id": APP_ID,
+        "owner": OWNER,
+        "license_key": generate_license_key(),
+        "installation_date": datetime.now().strftime("%Y-%m-%d"),
+        "version": VERSION
+    }
+    
+    with open("license.dat", "w") as f:
+        json.dump(license_data, f)
+    
+    # إنشاء ملف مخفي للتحقق من صحة الترخيص
+    with open(".app_verification", "w") as f:
+        verification_code = hashlib.sha512(f"{license_data['license_key']}_{APP_ID}".encode()).hexdigest()
+        f.write(verification_code)
+
+def verify_license():
+    """التحقق من صحة الترخيص"""
+    if not os.path.exists("license.dat") or not os.path.exists(".app_verification"):
+        print("⚠️ تحذير: ملفات التحقق غير موجودة. جاري إنشاء ترخيص جديد...")
+        save_license()
+        return True
+    
+    try:
+        with open("license.dat", "r") as f:
+            license_data = json.load(f)
+        
+        with open(".app_verification", "r") as f:
+            stored_verification = f.read().strip()
+        
+        computed_verification = hashlib.sha512(f"{license_data['license_key']}_{APP_ID}".encode()).hexdigest()
+        
+        if computed_verification != stored_verification:
+            print("❌ خطأ: فشل التحقق من الترخيص")
+            return False
+        
+        return True
+    except Exception as e:
+        print(f"❌ خطأ في التحقق من الترخيص: {e}")
+        return False
+
+def check_for_updates():
+    """التحقق من وجود تحديثات للتطبيق"""
+    print(f"🔍 جاري التحقق من التحديثات...")
+    try:
+        with urllib.request.urlopen(UPDATE_URL) as response:
+            update_info = json.loads(response.read().decode())
+            
+            if update_info["version"] > VERSION:
+                print(f"✨ تحديث جديد متوفر: الإصدار {update_info['version']}")
+                print(f"📝 الوصف: {update_info['description']}")
+                
+                print("\n" + "="*50)
+                print(f"📢 معلومات التحديث:")
+                print(f"• الإصدار الحالي: {VERSION}")
+                print(f"• الإصدار الجديد: {update_info['version']}")
+                print(f"• تاريخ الإصدار: {update_info.get('release_date', 'غير محدد')}")
+                print(f"• حجم التحديث: {update_info.get('size', 'غير محدد')}")
+                print("="*50 + "\n")
+                
+                choice = input("هل ترغب في تنزيل التحديث الآن؟ (نعم/لا): ")
+                
+                if choice.lower() in ["نعم", "y", "yes"]:
+                    print("⬇️ جاري تنزيل التحديث...")
+                    
+                    # إنشاء مجلد للتحديثات إذا لم يكن موجوداً
+                    if not os.path.exists("updates"):
+                        os.makedirs("updates")
+                    
+                    update_file = f"updates/update_v{update_info['version']}.exe"
+                    urllib.request.urlretrieve(update_info["download_url"], update_file)
+                    
+                    print("✅ تم تنزيل التحديث. جاري تثبيت التحديث...")
+                    time.sleep(1)
+                    
+                    # تشغيل ملف التحديث
+                    subprocess.Popen(update_file)
+                    sys.exit()
+            else:
+                print("✅ أنت تستخدم أحدث إصدار.")
+    except Exception as e:
+        print(f"❌ تعذر التحقق من التحديثات: {e}")
+
+def main():
+    """الدالة الرئيسية للتطبيق"""
+    print(f"🚀 جاري تشغيل {APP_NAME} - الإصدار {VERSION}")
+    print(f"👤 المالك: {OWNER}")
+    print(f"📝 معرف التطبيق: {APP_ID[:8]}...")
+    
+    # التحقق من الترخيص
+    if not verify_license():
+        print("❌ فشل التحقق من الترخيص. تأكد من أنك تستخدم نسخة أصلية من التطبيق.")
+        time.sleep(3)
+        sys.exit(1)
+    
+    # التحقق من التحديثات
+    check_for_updates()
+    
+    # تشغيل التطبيق الرئيسي
+    print("🌟 جاري تشغيل التطبيق...")
+    os.system("python main.py")
+
+if __name__ == "__main__":
+    main()
