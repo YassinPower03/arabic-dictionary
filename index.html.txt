@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>قاموس ياسين البهوش للمعاني</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4A90E2">
+    <link rel="icon" href="icon-192x192.png">
+    <style>
+        /* الأنماط CSS */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f8fa;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+        header {
+            background-color: #4A90E2;
+            color: white;
+            text-align: center;
+            padding: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        .search-box {
+            display: flex;
+            margin-bottom: 1rem;
+        }
+        .search-input {
+            flex-grow: 1;
+            padding: 0.8rem;
+            font-size: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 4px 0 0 4px;
+            direction: rtl;
+        }
+        .search-button {
+            background-color: #4A90E2;
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            border-radius: 0 4px 4px 0;
+        }
+        .result-card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .word {
+            font-size: 1.8rem;
+            color: #4A90E2;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+        .meaning {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            line-height: 1.6;
+        }
+        .examples, .synonyms, .antonyms {
+            margin-bottom: 1rem;
+        }
+        .section-title {
+            font-weight: bold;
+            color: #666;
+            margin-bottom: 0.3rem;
+        }
+        .example-item, .synonym-item, .antonym-item {
+            background-color: #f1f8ff;
+            padding: 0.5rem;
+            margin: 0.3rem 0;
+            border-radius: 4px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 2rem;
+            padding: 1rem;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        .suggestions {
+            background-color: white;
+            border: 1px solid #ddd;
+            border-top: none;
+            max-height: 200px;
+            overflow-y: auto;
+            position: absolute;
+            width: calc(100% - 2rem - 81px);
+            z-index: 10;
+            border-radius: 0 0 4px 4px;
+        }
+        .suggestion-item {
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+        }
+        .suggestion-item:hover {
+            background-color: #f1f8ff;
+        }
+        @media (max-width: 600px) {
+            .container {
+                padding: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>قاموس ياسين البهوش للمعاني</h1>
+        <p>القاموس التعليمي للأطفال</p>
+    </header>
+
+    <div class="container">
+        <div class="search-box">
+            <input type="text" id="search-input" class="search-input" placeholder="اكتب كلمة للبحث عنها...">
+            <button id="search-button" class="search-button">بحث</button>
+        </div>
+        <div id="suggestions" class="suggestions" style="display: none;"></div>
+        
+        <div id="results"></div>
+    </div>
+
+    <footer class="footer">
+        <p>© جميع الحقوق محفوظة لياسين بهوش 2025</p>
+    </footer>
+
+    <script>
+        // كود JavaScript
+        let dictionaryData = null;
+        let allWords = [];
+
+        // تحميل بيانات القاموس
+        async function loadDictionary() {
+            try {
+                const response = await fetch('dictionary.json');
+                dictionaryData = await response.json();
+                allWords = dictionaryData.كلمات.map(entry => entry.كلمة);
+                console.log('تم تحميل القاموس بنجاح');
+            } catch (error) {
+                console.error('خطأ في تحميل القاموس:', error);
+            }
+        }
+
+        // البحث عن كلمة
+        function searchWord(word) {
+            if (!dictionaryData) return null;
+            
+            return dictionaryData.كلمات.find(entry => 
+                entry.كلمة.trim().toLowerCase() === word.trim().toLowerCase()
+            );
+        }
+
+        // إظهار نتائج البحث
+        function displayResult(wordEntry) {
+            const resultsDiv = document.getElementById('results');
+            
+            if (!wordEntry) {
+                resultsDiv.innerHTML = '<div class="result-card">لم يتم العثور على هذه الكلمة في القاموس.</div>';
+                return;
+            }
+            
+            let html = `
+                <div class="result-card">
+                    <div class="word">${wordEntry.كلمة}</div>
+                    <div class="meaning">${wordEntry.معنى}</div>
+            `;
+            
+            if (wordEntry.أمثلة && wordEntry.أمثلة.length > 0) {
+                html += `
+                    <div class="examples">
+                        <div class="section-title">أمثلة:</div>
+                `;
+                
+                wordEntry.أمثلة.forEach(example => {
+                    html += `<div class="example-item">${example}</div>`;
+                });
+                
+                html += `</div>`;
+            }
+            
+            if (wordEntry.مرادفات && wordEntry.مرادفات.length > 0) {
+                html += `
+                    <div class="synonyms">
+                        <div class="section-title">مرادفات:</div>
+                `;
+                
+                wordEntry.مرادفات.forEach(synonym => {
+                    html += `<span class="synonym-item">${synonym}</span> `;
+                });
+                
+                html += `</div>`;
+            }
+            
+            if (wordEntry.متضادات && wordEntry.متضادات.length > 0) {
+                html += `
+                    <div class="antonyms">
+                        <div class="section-title">متضادات:</div>
+                `;
+                
+                wordEntry.متضادات.forEach(antonym => {
+                    html += `<span class="antonym-item">${antonym}</span> `;
+                });
+                
+                html += `</div>`;
+            }
+            
+            html += `</div>`;
+            resultsDiv.innerHTML = html;
+        }
+
+        // البحث عند النقر على زر البحث
+        document.getElementById('search-button').addEventListener('click', () => {
+            const searchInput = document.getElementById('search-input');
+            const word = searchInput.value;
+            
+            if (word.trim() === '') return;
+            
+            const result = searchWord(word);
+            displayResult(result);
+        });
+
+        // البحث عند الضغط على Enter
+        document.getElementById('search-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const word = e.target.value;
+                
+                if (word.trim() === '') return;
+                
+                const result = searchWord(word);
+                displayResult(result);
+            }
+        });
+
+        // عرض الاقتراحات أثناء الكتابة
+        document.getElementById('search-input').addEventListener('input', (e) => {
+            const word = e.target.value.trim().toLowerCase();
+            const suggestionsDiv = document.getElementById('suggestions');
+            
+            if (word === '') {
+                suggestionsDiv.style.display = 'none';
+                return;
+            }
+            
+            const filteredWords = allWords.filter(w => 
+                w.toLowerCase().includes(word)
+            ).slice(0, 5);
+            
+            if (filteredWords.length > 0) {
+                suggestionsDiv.innerHTML = '';
+                filteredWords.forEach(suggestion => {
+                    const div = document.createElement('div');
+                    div.classList.add('suggestion-item');
+                    div.textContent = suggestion;
+                    div.addEventListener('click', () => {
+                        document.getElementById('search-input').value = suggestion;
+                        suggestionsDiv.style.display = 'none';
+                        const result = searchWord(suggestion);
+                        displayResult(result);
+                    });
+                    suggestionsDiv.appendChild(div);
+                });
+                suggestionsDiv.style.display = 'block';
+            } else {
+                suggestionsDiv.style.display = 'none';
+            }
+        });
+
+        // إخفاء الاقتراحات عند النقر خارجها
+        document.addEventListener('click', (e) => {
+            if (e.target.id !== 'search-input') {
+                document.getElementById('suggestions').style.display = 'none';
+            }
+        });
+
+        // تحميل القاموس عند تحميل الصفحة
+        window.addEventListener('load', loadDictionary);
+
+        // تسجيل service worker للعمل بدون إنترنت
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js')
+            .then(registration => {
+                console.log('ServiceWorker تم تسجيله بنجاح:', registration);
+            })
+            .catch(error => {
+                console.log('فشل تسجيل ServiceWorker:', error);
+            });
+        }
+    </script>
+</body>
+</html>
